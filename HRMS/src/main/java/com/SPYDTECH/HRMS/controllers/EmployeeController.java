@@ -2,11 +2,13 @@ package com.SPYDTECH.HRMS.controllers;
 
 import com.SPYDTECH.HRMS.configuration.JwtTokenProvider;
 import com.SPYDTECH.HRMS.entites.Employee;
+import com.SPYDTECH.HRMS.entites.OtpVerificationRequest;
+import com.SPYDTECH.HRMS.entites.PasswordChange;
+import com.SPYDTECH.HRMS.exceptions.UserException;
+import com.SPYDTECH.HRMS.repository.EmployeeRepository;
 import com.SPYDTECH.HRMS.request.LoginRequest;
 import com.SPYDTECH.HRMS.response.AuthResponse;
-import com.SPYDTECH.HRMS.service.CustomEmployeeDetails;
-import com.SPYDTECH.HRMS.service.EmployeeActivityService;
-import com.SPYDTECH.HRMS.service.EmployeeService;
+import com.SPYDTECH.HRMS.service.*;
 import jakarta.mail.MessagingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,8 @@ public class EmployeeController {
     @Autowired
     private EmployeeService employeeService;
 
+    private String generatedOtp;
+
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -41,6 +45,15 @@ public class EmployeeController {
 
     @Autowired
     private EmployeeActivityService employeeActivityService;
+
+    @Autowired
+    private OtpService otpService;
+
+    @Autowired
+    EmployeeRepository employeeRepository;
+
+    @Autowired
+    EmailService emailService;
 
     @PostMapping("/register")
     public ResponseEntity<?> createLoginCredentials(@RequestBody Employee employee) {
@@ -126,4 +139,65 @@ public class EmployeeController {
 
         return ResponseEntity.ok().build();
     }
+
+    @PutMapping("/password/{email}")
+    public ResponseEntity<String> updatePassword(@PathVariable String email,@RequestBody PasswordChange passwordChange){
+        return new ResponseEntity<>(employeeService.updatePassword(email,passwordChange),HttpStatus.CREATED);
+    }
+
+    @PostMapping("/forget")
+    public ResponseEntity<String> forgetPassword(@RequestBody Employee employee) throws MessagingException, jakarta.mail.MessagingException, UserException {
+        // Check if the email is already registered
+        Employee email = employeeRepository.findByEmail(employee.getEmail());
+        if (email != null) {
+            // Generate OTP
+            generatedOtp = otpService.generateOtp();
+
+            // Send OTP via email
+            emailService.sendOtpEmail(employee.getEmail(), generatedOtp);
+
+
+            return ResponseEntity.ok("OTP sent successfully.");
+
+        } else {
+            return ResponseEntity.badRequest().body("You entered invalid email.");
+        }
+    }
+
+    @PostMapping("/validating-otp")
+    public ResponseEntity<String> validatingOtp(@RequestBody OtpVerificationRequest request) throws UserException {
+        if (generatedOtp != null && request.getOtp().equals(generatedOtp)) {
+
+
+            return new ResponseEntity<String>("otp verified.", HttpStatus.OK);
+
+        } else {
+            // OTP verification failed
+            return new ResponseEntity<String>("Invalid otp.", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PostMapping("/confirmpwd/{email}")
+    public ResponseEntity<String> confirmPassword(@PathVariable String email, @RequestBody Employee employee) {
+        String password = employee.getPassword();
+        System.out.println(password);
+        String confirmPassword = employee.getConfirmPassword();
+        System.out.println(confirmPassword);
+
+        if (!password.equals(confirmPassword)) {
+            return new ResponseEntity<>("Passwords do not match", HttpStatus.BAD_REQUEST);
+        }
+        // Find the existing user by email
+        Employee existingEmployee = employeeRepository.findByEmail(email);
+        if (existingEmployee == null) {
+            return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+        }
+        // Update password
+        existingEmployee.setPassword(passwordEncoder.encode(password));
+        existingEmployee.setConfirmPassword(passwordEncoder.encode(confirmPassword));
+        employeeRepository.save(existingEmployee);
+
+        return new ResponseEntity<>("Password updated successfully", HttpStatus.OK);
+    }
+
 }

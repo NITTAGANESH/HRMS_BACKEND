@@ -33,8 +33,12 @@ public class Employee {
 
     private String joinDate;
 
+    private String confirmPassword;
+
     private String role;
     @JsonIgnore
     @OneToMany(mappedBy = "orderBy")
     private List<Expense> expenses;
+
+
 }

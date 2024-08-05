@@ -2,6 +2,7 @@ package com.SPYDTECH.HRMS.service;
 
 import com.SPYDTECH.HRMS.configuration.JwtTokenProvider;
 import com.SPYDTECH.HRMS.entites.Employee;
+import com.SPYDTECH.HRMS.entites.PasswordChange;
 import com.SPYDTECH.HRMS.exceptions.UserException;
 import com.SPYDTECH.HRMS.repository.EmployeeRepository;
 import jakarta.mail.MessagingException;
@@ -101,5 +102,30 @@ public class EmployeeServiceImpl implements EmployeeService{
 
         employeeRepository.delete(employeeOptional.get());
         return true;
+    }
+
+
+    public String updatePassword(String email, PasswordChange passwordChange){
+        Optional<Employee> employee= Optional.ofNullable(employeeRepository.findByEmail(email));
+        if(employee.isPresent()){
+            Employee employee1=employee.get();
+            if(passwordChange.getNewPassword().equals(passwordChange.getConfirmPassword())){
+                if(passwordEncoder.matches(passwordChange.getOldPassword(), employee1.getPassword())){
+                    employee1.setPassword(passwordEncoder.encode(passwordChange.getNewPassword()));
+                    employeeRepository.save(employee1);
+                    return "password updated successfully";
+                }else{
+                    return "password not matches with the old password";
+                }
+
+            }else{
+                return "new Password and confirm Password are not equal";
+            }
+
+        }else{
+            return "user is not found";
+        }
+
+
     }
 }
