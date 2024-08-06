@@ -1,34 +1,46 @@
 package com.SPYDTECH.HRMS.service;
 
-import com.SPYDTECH.HRMS.entites.*;
+
+
+import com.SPYDTECH.HRMS.dto.*;
+import com.SPYDTECH.HRMS.entites.Attendance;
+import com.SPYDTECH.HRMS.entites.Employee;
+import com.SPYDTECH.HRMS.entites.HolidaysList;
+import com.SPYDTECH.HRMS.entites.User;
+import com.SPYDTECH.HRMS.exceptions.ErrorResponse;
 import com.SPYDTECH.HRMS.repository.AttendanceRepository;
 import com.SPYDTECH.HRMS.repository.EmployeeRepository;
-import com.SPYDTECH.HRMS.exceptions.ErrorResponse;
+import com.SPYDTECH.HRMS.repository.HolidayRepository;
+import com.SPYDTECH.HRMS.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class AttendanceServiceImpl implements AttendanceService {
 
     @Autowired
-    private EmployeeRepository employeeRepository;
+    private UserRepository userRepository;
 
     @Autowired
     private AttendanceRepository attendanceRepository;
+
+    @Autowired
+    private HolidayRepository holidayRepository;
+
+    @Autowired
+            private EmployeeRepository employeeRepository;
 
     Attendance existingAttendance;
 
@@ -36,16 +48,17 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     String employeeId;
 
+    String emailId;
+
+    long weekendCount;
+
     LocalDateTime now = LocalDateTime.now();
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
-    public AttendanceServiceImpl(EmployeeRepository employeeRepository, AttendanceRepository attendanceRepository) {
-        this.employeeRepository = employeeRepository;
-        this.attendanceRepository = attendanceRepository;
-    }
-
     @Override
     public ResponseEntity punchIn(String email){
+
+       // emailId = getUsername();
 
         employeeId = getEmployeeId(email);
         if(employeeId != null){
@@ -79,6 +92,8 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     public ResponseEntity punchOut(String email){
 
+        //emailId = getUsername();
+
         employeeId = getEmployeeId(email);
 
         if(employeeId != null){
@@ -108,8 +123,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         return ResponseEntity.ok( "Successfully PUNCHED_OUT");
     }
 
-    @Override
-    public List<DailyAttendance> getMonthlyAttendance(int month, int year) {
+    public List<DailyAttendanceDTO> getMonthlyAttendance(int month, int year) {
         List<Attendance> attendances = attendanceRepository.findAllByMonthAndYear(month, year);
         DateTimeFormatter formatterTwo = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -117,27 +131,27 @@ public class AttendanceServiceImpl implements AttendanceService {
         Map<String, List<Attendance>> groupedByDate = attendances.stream()
                 .collect(Collectors.groupingBy(attendance -> attendance.getPunchIn().toLocalDate().format(formatterTwo)));
 
-        List<DailyAttendance> dailyAttendanceList = new ArrayList<>();
+        List<DailyAttendanceDTO> dailyAttendanceList = new ArrayList<>();
 
         for (Map.Entry<String, List<Attendance>> entry : groupedByDate.entrySet()) {
             String date = entry.getKey();
             List<Attendance> dailyAttendances = entry.getValue();
 
-            List<EmployeeAttendanceDetail> employeeAttendanceDetails = new ArrayList<>();
+            List<EmployeeAttendanceDetailDTO> employeeAttendanceDetails = new ArrayList<>();
 
             for (Attendance attendance : dailyAttendances) {
                 String employeeId = attendance.getEmployeeId();
                 Optional<Employee> employeeOptional = employeeRepository.findByEmployeeId(employeeId);
-                Employee employee = employeeOptional.get();
-                String employeeName = employee != null ? employee.getFirstName() +employee.getLastName() : "Unknown";
+                Employee employee=employeeOptional.get();
+                String employeeName = employee != null ? employee.getFirstName() +employee.getLastName(): "Unknown";
                 String status = attendance.getAttendanceStatus();
 
-                EmployeeAttendanceDetail details= new EmployeeAttendanceDetail(employeeId, employeeName, status);
-                employeeAttendanceDetails.add(details);
+                EmployeeAttendanceDetailDTO detailDTO = new EmployeeAttendanceDetailDTO(employeeId, employeeName, status);
+                employeeAttendanceDetails.add(detailDTO);
             }
 
-            DailyAttendance daily = new DailyAttendance(date, employeeAttendanceDetails);
-            dailyAttendanceList.add(daily);
+            DailyAttendanceDTO dailyDTO = new DailyAttendanceDTO(date, employeeAttendanceDetails);
+            dailyAttendanceList.add(dailyDTO);
         }
 
         return dailyAttendanceList;
@@ -195,16 +209,265 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     public String getEmployeeId (String email){
 
-        Employee employeeData ;
+        Employee empData ;
         String id;
 
         if(employeeRepository.existsByEmail(email)){
-            employeeData = employeeRepository.findByEmail(email);
-            id = employeeData.getEmployeeId();
+            empData = employeeRepository.findByEmail(email);
+            id = empData.getEmployeeId();
         }
         else{
             id = null;
         }
         return id;
     }
+
+
+    public String getUsername() {
+
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String username;
+        if (principal instanceof UserDetails) {
+            username = ((UserDetails) principal).getUsername();
+        } else {
+            username = " ";
+        }
+        return username;
+
+    }
+
+    public EmployeeAttendanceDTO getEmployeeAttendanceDetail(String employeeId, int year, int month) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
+
+        List<Attendance> attendances = attendanceRepository.findByEmployeeIdAndPunchInBetween(
+                employeeId,
+                startDate.atStartOfDay(),
+                endDate.atTime(LocalTime.MAX)
+        );
+
+        List<HolidaysList> holidays = holidayRepository.findByDayBetween(startDate, endDate);
+
+        // Generate list of all dates in the month
+        List<LocalDate> allDates = startDate.datesUntil(endDate.plusDays(1)).collect(Collectors.toList());
+
+        // Create map for easy lookup
+        Set<LocalDate> holidayDates = holidays.stream().map(HolidaysList::getDay).collect(Collectors.toSet());
+        Set<LocalDate> attendedDates = attendances.stream().map(att -> att.getPunchIn().toLocalDate()).collect(Collectors.toSet());
+
+        EmployeeAttendanceDTO dto = new EmployeeAttendanceDTO();
+        dto.setEmployeeId(employeeId);
+        Optional<Employee> OptionalEmployee = employeeRepository.findByEmployeeId(employeeId);
+        Employee employee=OptionalEmployee.get();
+        String employeeName = (employee != null) ? (employee.getFirstName() + " " + employee.getLastName()) : "Unknown";
+        dto.setEmployeeName(employeeName);
+
+        List<AttendanceDetail> details = new ArrayList<>();
+        long attendedDays = 0;
+
+        for (LocalDate date : allDates) {
+            boolean isPresent = attendedDates.contains(date);
+            boolean isWeekend = date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY;
+            boolean isHoliday = holidayDates.contains(date);
+
+            if (isPresent) {
+                attendedDays++;
+            }
+
+            details.add(new AttendanceDetail(date, isPresent, isWeekend, isHoliday));
+        }
+
+        dto.setAttendanceDetails(details);
+        dto.setAttendedDays(attendedDays);
+        dto.setWeekOffs(countWeekends(year, month));
+        dto.setHolidays(countHolidays(year, month));
+        dto.setTimeOff(0); // Placeholder - Implement as needed
+        dto.setLossOfPay(getTotalWorkingDays(year, month) - attendedDays - dto.getHolidays()); // Use method for total working days
+        dto.setLateHours(countLatePunchInMinutes(employeeId, year, month));
+        dto.setEarlyHours(countEarlyPunchInMinutes(employeeId, year, month));
+        dto.setOvertimeHours(countOvertimeMinutes(employeeId, year, month));
+
+        return dto;
+    }
+
+    @Override
+    public List<AttendanceReport> getAllEmployeeAttendanceReport (int year, int month){
+        List<Employee> employeeList = employeeRepository.findAll();
+        List<HolidaysList> holidays = holidayRepository.findByDayBetween(
+                YearMonth.of(year, month).atDay(1),
+                YearMonth.of(year, month).atEndOfMonth()
+        );
+
+        long totalWorkingDays = getTotalWorkingDays(year, month);
+        long weekOffs = countWeekends(year, month);
+
+        List<AttendanceReport> reports = new ArrayList<>();
+
+        for (Employee emp : employeeList) {
+            String employeeId = emp.getEmployeeId();
+            List<Attendance> employeeAttendances = attendanceRepository.findByEmployeeIdAndPunchInBetween(
+                    employeeId,
+                    YearMonth.of(year, month).atDay(1).atStartOfDay(),
+                    YearMonth.of(year, month).atEndOfMonth().atTime(LocalTime.MAX)
+            );
+
+            AttendanceReport report = new AttendanceReport();
+            report.setEmployee_id(employeeId);
+            report.setEmployee_name(emp.getFirstName() + " " + emp.getLastName()); // Assuming User has a getName() method
+
+            report.setAttended(countPresentDays(employeeId, year, month));
+            report.setWeek_off(weekOffs);
+            report.setHolidays(holidays.size());
+            report.setTime_off(0);
+            report.setLoss_of_pay(totalWorkingDays - countPresentDays(employeeId, year, month) - holidays.size()); // Placeholder - Implement as needed
+            report.setLate_count(countLatePunchInMinutes(employeeId, year, month));
+            report.setEarly_count(countEarlyPunchInMinutes(employeeId, year, month));
+            report.setOver_time(countOvertimeMinutes(employeeId, year, month));
+
+            reports.add(report);
+        }
+
+        return reports;
+    }
+
+    private long getTotalWorkingDays(int year, int month) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
+        long totalDays = yearMonth.lengthOfMonth();
+
+        long weekendDays = countWeekends(year, month);
+        return totalDays - weekendDays;
+    }
+
+    public long countWeekends(int year ,int month){
+        YearMonth yearMonth = YearMonth.of(year, month);
+        int totalDays = yearMonth.lengthOfMonth();
+        weekendCount = 0;
+
+        for (int day = 1; day <= totalDays; day++) {
+            LocalDate date = LocalDate.of(year, month, day);
+            DayOfWeek dayOfWeek = date.getDayOfWeek();
+            if (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY) {
+                weekendCount++;
+            }
+        }
+
+        return weekendCount;
+    }
+
+    public long countHolidays(int year, int month) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
+
+        List<HolidaysList> holidays = holidayRepository.findByDayBetween(startDate, endDate);
+        return holidays.size();
+    }
+
+    public long countPresentDays(String employeeId, int year, int month) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDateTime startDateTime = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime endDateTime = yearMonth.atEndOfMonth().atTime(LocalTime.MAX);
+
+        List<Attendance> attendances = attendanceRepository.findByEmployeeIdAndPunchInBetween(employeeId, startDateTime, endDateTime);
+        return attendances.stream()
+                .map(attendance -> attendance.getPunchIn().toLocalDate())
+                .distinct()
+                .count();
+    }
+
+    public double countEarlyPunchInMinutes(String employeeId, int year, int month) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDateTime startDateTime = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime endDateTime = yearMonth.atEndOfMonth().atTime(LocalTime.MAX);
+
+        LocalTime startTime = LocalTime.of(9, 0); // 9 AM
+
+        List<Attendance> attendances = attendanceRepository.findByEmployeeIdAndPunchInBetween(employeeId, startDateTime, endDateTime);
+
+        long totalMinutes = attendances.stream()
+                .filter(attendance -> attendance.getPunchIn().toLocalTime().isBefore(startTime))
+                .mapToLong(attendance -> {
+                    LocalTime punchInTime = attendance.getPunchIn().toLocalTime();
+                    Duration duration = Duration.between(punchInTime, startTime);
+                    return duration.toMinutes();
+                })
+                .sum();
+        double totalHours = totalMinutes / 60.0;
+
+        return totalHours;
+    }
+
+    public double countLatePunchInMinutes(String employeeId, int year, int month) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDateTime startDateTime = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime endDateTime = yearMonth.atEndOfMonth().atTime(LocalTime.MAX);
+
+        LocalTime startTime = LocalTime.of(9, 0); // 9 AM
+
+        List<Attendance> attendances = attendanceRepository.findByEmployeeIdAndPunchInBetween(employeeId, startDateTime, endDateTime);
+
+        long totalMinutes = attendances.stream()
+                .filter(attendance -> attendance.getPunchIn().toLocalTime().isAfter(startTime))
+                .mapToLong(attendance -> {
+                    LocalTime punchInTime = attendance.getPunchIn().toLocalTime();
+                    Duration duration = Duration.between(startTime, punchInTime);
+                    return duration.toMinutes();
+                })
+                .sum();
+
+        double totalHours = totalMinutes / 60.0;
+
+        return totalHours;
+    }
+
+    public double countEarlyPunchOutMinutes(String employeeId, int year, int month) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDateTime startDateTime = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime endDateTime = yearMonth.atEndOfMonth().atTime(LocalTime.MAX);
+
+        LocalTime endTime = LocalTime.of(9, 0); // 6 PM
+
+        List<Attendance> attendances = attendanceRepository.findByEmployeeIdAndPunchInBetween(employeeId, startDateTime, endDateTime);
+
+        long totalMinutes = attendances.stream()
+                .filter(attendance -> attendance.getPunchOut() != null && attendance.getPunchOut().toLocalTime().isBefore(endTime))
+                .mapToLong(attendance -> {
+                    LocalTime punchOutTime = attendance.getPunchOut().toLocalTime();
+                    Duration duration = Duration.between(punchOutTime, endTime);
+                    return duration.toMinutes();
+                })
+                .sum();
+
+        double totalHours = totalMinutes / 60.0;
+
+        return totalHours;
+    }
+
+    public double countOvertimeMinutes(String employeeId, int year, int month) {
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDateTime startDateTime = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime endDateTime = yearMonth.atEndOfMonth().atTime(LocalTime.MAX);
+
+        LocalTime endTime = LocalTime.of(18, 0); // 6 PM
+
+        List<Attendance> attendances = attendanceRepository.findByEmployeeIdAndPunchInBetween(employeeId, startDateTime, endDateTime);
+
+        long totalMinutes = attendances.stream()
+                .filter(attendance -> attendance.getPunchOut() != null && attendance.getPunchOut().toLocalTime().isAfter(endTime))
+                .mapToLong(attendance -> {
+                    LocalTime punchOutTime = attendance.getPunchOut().toLocalTime();
+                    Duration duration = Duration.between(endTime, punchOutTime);
+                    return duration.toMinutes();
+                })
+                .sum();
+
+        double totalHours = totalMinutes / 60.0;
+
+        return totalHours;
+    }
+
+
 }

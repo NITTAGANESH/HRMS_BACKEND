@@ -1,6 +1,7 @@
 package com.SPYDTECH.HRMS.repository;
 
 import com.SPYDTECH.HRMS.entites.Employee;
+import com.SPYDTECH.HRMS.entites.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,4 +15,5 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     Optional<Employee> findByEmployeeId(String employeeId);
 
 
+    User findUserByEmail(String email);
 }

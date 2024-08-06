@@ -1,5 +1,7 @@
 package com.SPYDTECH.HRMS.repository;
 
+
+
 import com.SPYDTECH.HRMS.entites.Attendance;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -24,4 +26,6 @@ public interface AttendanceRepository extends JpaRepository<Attendance,Long> {
 
     @Query("SELECT a FROM Attendance a WHERE MONTH(a.punchIn) = :month AND YEAR(a.punchIn) = :year")
     List<Attendance> findAllByMonthAndYear(@Param("month") int month, @Param("year") int year);
+
+    List<Attendance> findByEmployeeIdAndPunchInBetween(String employeeId, LocalDateTime startDateTime, LocalDateTime endDateTime);
 }
