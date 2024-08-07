@@ -18,7 +18,7 @@ public class AttendanceService {
     @Autowired
     private AttendanceRepository attendanceRepository;
 
-    public List<Attendance> getAllAttendance() {
+    public List<Attendance> getAllAttendances() {
         return attendanceRepository.findAll();
     }
 

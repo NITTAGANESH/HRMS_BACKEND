@@ -19,15 +19,15 @@ import java.util.List;
 public class AttendanceController {
 
     @Autowired
-    private AttendanceRepository attendanceRepository;
+    private AttendanceService attendanceService;
 
     @PostMapping
-    public Attendance saveAttendance(@RequestBody Attendance attendance) {
-        return attendanceRepository.save(attendance);
+    public ResponseEntity<Attendance> createAttendance(@RequestBody Attendance attendance) {
+        return ResponseEntity.ok(attendanceService.saveAttendance(attendance));
     }
 
     @GetMapping
-    public List<Attendance> getAllAttendance() {
-        return attendanceRepository.findAll();
+    public ResponseEntity<List<Attendance>> getAllAttendances() {
+        return ResponseEntity.ok(attendanceService.getAllAttendances());
     }
 }
