@@ -4,6 +4,8 @@ package com.SPYDTECH.HRMS.controllers;
 import com.SPYDTECH.HRMS.dto.AttendanceReport;
 import com.SPYDTECH.HRMS.dto.DailyAttendanceDTO;
 import com.SPYDTECH.HRMS.dto.EmployeeAttendanceDTO;
+import com.SPYDTECH.HRMS.entites.Attendance;
+import com.SPYDTECH.HRMS.repository.AttendanceRepository;
 import com.SPYDTECH.HRMS.service.AttendanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,42 +15,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1")
-@RequiredArgsConstructor
+@RequestMapping("/api/attendance")
 public class AttendanceController {
 
     @Autowired
-    private AttendanceService attendanceService;
+    private AttendanceRepository attendanceRepository;
 
-    @PostMapping("/punch-in")
-    public ResponseEntity punchIn(@RequestParam String email) {
-        return attendanceService.punchIn(email);
+    @PostMapping
+    public Attendance saveAttendance(@RequestBody Attendance attendance) {
+        return attendanceRepository.save(attendance);
     }
 
-    @PostMapping("/punch-out")
-    public ResponseEntity punchOut(@RequestParam String email) {
-
-        return attendanceService.punchOut(email);
-
-    }
-
-    @GetMapping("/create/monthly-attendance")
-    public List<DailyAttendanceDTO> getMonthlyAttendance(
-            @RequestParam int month,
-            @RequestParam int year) {
-        return attendanceService.getMonthlyAttendance(month, year);
-    }
-
-    @GetMapping("/employeeAttendanceReport")
-    public List<AttendanceReport> getEmployeeAttendanceReport(@RequestParam int year, @RequestParam int month) {
-        return attendanceService.getAllEmployeeAttendanceReport(year, month);
-    }
-
-    @GetMapping("/employee/{employeeId}")
-    public EmployeeAttendanceDTO getEmployeeAttendanceDetail(
-            @PathVariable String employeeId,
-            @RequestParam int year,
-            @RequestParam int month) {
-        return attendanceService.getEmployeeAttendanceDetail(employeeId, year, month);
+    @GetMapping
+    public List<Attendance> getAllAttendance() {
+        return attendanceRepository.findAll();
     }
 }

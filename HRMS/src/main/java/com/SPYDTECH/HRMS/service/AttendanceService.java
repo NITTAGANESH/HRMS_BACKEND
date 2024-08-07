@@ -4,19 +4,33 @@ package com.SPYDTECH.HRMS.service;
 import com.SPYDTECH.HRMS.dto.AttendanceReport;
 import com.SPYDTECH.HRMS.dto.DailyAttendanceDTO;
 import com.SPYDTECH.HRMS.dto.EmployeeAttendanceDTO;
+import com.SPYDTECH.HRMS.entites.Attendance;
+import com.SPYDTECH.HRMS.repository.AttendanceRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-public interface AttendanceService {
+@Service
+public class AttendanceService {
 
-    ResponseEntity punchIn(String email);
+    @Autowired
+    private AttendanceRepository attendanceRepository;
 
-    ResponseEntity punchOut(String email);
+    public List<Attendance> getAllAttendance() {
+        return attendanceRepository.findAll();
+    }
 
-    List<DailyAttendanceDTO> getMonthlyAttendance(int month, int year);
+    public Attendance getAttendanceById(Long id) {
+        return attendanceRepository.findById(id).orElse(null);
+    }
 
-    List<AttendanceReport> getAllEmployeeAttendanceReport(int year, int month);
+    public Attendance saveAttendance(Attendance attendance) {
+        return attendanceRepository.save(attendance);
+    }
 
-    EmployeeAttendanceDTO getEmployeeAttendanceDetail(String employeeId, int year, int month);
+    public void deleteAttendance(Long id) {
+        attendanceRepository.deleteById(id);
+    }
 }

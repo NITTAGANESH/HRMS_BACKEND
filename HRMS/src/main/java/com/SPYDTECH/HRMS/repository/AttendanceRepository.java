@@ -15,17 +15,4 @@ import java.util.List;
 @Repository
 public interface AttendanceRepository extends JpaRepository<Attendance,Long> {
 
-    Attendance findFirstByEmployeeIdOrderByIdDesc(String employeeId);
-
-
-    @Query(value = "SELECT DISTINCT employee_id FROM attendance WHERE DATE(punch_in) = :date", nativeQuery = true)
-    List<String> findEmployeeIdsWithRecordsForDate(@Param("date") LocalDate date);
-
-    @Query("SELECT a FROM Attendance a WHERE a.punchIn >= :startOfDay AND a.punchIn < :endOfDay AND a.punchOut IS NULL")
-    List<Attendance> findActiveAttendancesForToday(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
-
-    @Query("SELECT a FROM Attendance a WHERE MONTH(a.punchIn) = :month AND YEAR(a.punchIn) = :year")
-    List<Attendance> findAllByMonthAndYear(@Param("month") int month, @Param("year") int year);
-
-    List<Attendance> findByEmployeeIdAndPunchInBetween(String employeeId, LocalDateTime startDateTime, LocalDateTime endDateTime);
 }

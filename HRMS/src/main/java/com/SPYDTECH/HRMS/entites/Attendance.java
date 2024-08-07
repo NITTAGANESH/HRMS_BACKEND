@@ -21,14 +21,18 @@ public class Attendance {
 
     @Column(nullable = false)
     private String employeeId;
+    private String employeeName;
 
     private LocalDateTime punchIn;
 
     private LocalDateTime punchOut;
 
-    private Long workingMinutes;
+    private int productionHours;
+    private int productionMinutes;
+    private int productionSeconds;
+    private int breakHours;
+    private int breakMinutes;
+    private int breakSeconds;
+    private int overtime;
 
-    private String status;
-
-    private String attendanceStatus;
 }
