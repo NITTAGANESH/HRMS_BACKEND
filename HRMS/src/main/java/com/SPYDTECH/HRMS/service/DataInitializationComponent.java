@@ -17,7 +17,7 @@ public class DataInitializationComponent implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(DataInitializationComponent.class);
 
-   // private final UserRepository userRepository;
+    private final UserRepository userRepository;
     @Autowired
      EmployeeRepository employeeRepository;
 
@@ -25,10 +25,10 @@ public class DataInitializationComponent implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public DataInitializationComponent(EmployeeRepository employeeRepository,
+    public DataInitializationComponent(UserRepository userRepository,
                                        PasswordEncoder passwordEncoder
     ) {
-        this.employeeRepository = employeeRepository;
+        this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
 
     }
@@ -42,15 +42,15 @@ public class DataInitializationComponent implements CommandLineRunner {
         String adminUsername = "pa1velagana@gmail.com";
 
         try {
-            if (employeeRepository.findByEmail(adminUsername) == null) {
-                Employee adminEmployee = new Employee();
-                adminEmployee.setFirstName("Spyd");
-                adminEmployee.setLastName("tech");
-                adminEmployee.setEmail(adminUsername);
-                adminEmployee.setPassword(passwordEncoder.encode("Spyd@1234"));
-                adminEmployee.setRole("ADMIN");
+            if (userRepository.findByEmail(adminUsername) == null) {
+                User adminUser= new User();
+                adminUser.setFirstName("Spyd");
+                adminUser.setLastName("tech");
+                adminUser.setEmail(adminUsername);
+                adminUser.setPassword(passwordEncoder.encode("Spyd@1234"));
+                adminUser.setRole("ADMIN");
 
-                Employee  admin = employeeRepository.save(adminEmployee);
+                User  admin = userRepository.save(adminUser);
 
 //                cartService.createCart(admin);
 
