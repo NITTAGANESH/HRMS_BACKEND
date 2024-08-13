@@ -18,7 +18,8 @@ public class HolidaysList {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private LocalDate day;
+
+    private String day;
     private String date;
     private String holidayName;
 }
